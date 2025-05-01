@@ -4,8 +4,9 @@
 local/
 notes.txt
 deploy.zip
+deploy.env
 .vscode/
-
+.env 
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -122,6 +123,10 @@ ENV/
 env.bak/
 venv.bak/
 backend_env
+backend/flask_session_files
+flask_session_files
+backend/flask_session_files
+backend/flask_session_files/*
 
 # Spyder project settings
 .spyderproject

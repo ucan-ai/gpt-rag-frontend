@@ -50,7 +50,7 @@ echo ""
 echo "Building frontend"
 echo ""
 
-# npm run build
+npm run build
 if [ $? -ne 0 ]; then
     echo "Failed to build frontend"
     exit $?
@@ -61,7 +61,7 @@ echo "Starting backend"
 echo ""
 
 cd ../backend
-xdg-open http://127.0.0.1:8000
+xdg-open http:/localhost:8000
 ./backend_env/bin/python3 ./app.py
 if [ $? -ne 0 ]; then
     echo "Failed to start backend"

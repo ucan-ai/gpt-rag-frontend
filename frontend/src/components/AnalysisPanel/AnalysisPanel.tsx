@@ -1,57 +1,122 @@
-import React, { Suspense, lazy, useState, useEffect } from "react";
+import React, { Suspense, lazy } from "react";
 import { Pivot, PivotItem } from "@fluentui/react";
 import DOMPurify from "dompurify";
 import styles from "./AnalysisPanel.module.css";
-import { SupportingContent } from "../SupportingContent";
-import { AskResponse } from "../../api";
+import { AskResponse, Thought } from "../../api";
 import { AnalysisPanelTabs } from "./AnalysisPanelTabs";
-import { getPage, getFileType } from "../../utils/functions";
 
 const LazyViewer = lazy(() => import("../DocView/DocView"));
 
 interface Props {
-    className: string;
-    activeTab: AnalysisPanelTabs;
-    onActiveTabChanged: (tab: AnalysisPanelTabs) => void;
-    activeCitation: string | undefined;
-    citationHeight: string;
-    answer: AskResponse;
-    fileType: string;
+  className: string;
+  activeTab: AnalysisPanelTabs | undefined;
+  onActiveTabChanged: (tab: AnalysisPanelTabs) => void;
+  activeCitation: string | undefined;
+  citationHeight: string;
+  answer: AskResponse;
+  fileType?: string;
+  fileName?: string;
 }
 
 const pivotItemDisabledStyle = { disabled: true, style: { color: "grey" } };
 
-export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeight, className, onActiveTabChanged, fileType }: Props) => {
-    const isDisabledThoughtProcessTab: boolean = !answer.thoughts;
-    const isDisabledSupportingContentTab: boolean = !answer.data_points.length;
-    const isDisabledCitationTab: boolean = !activeCitation;
-    const page = getPage(answer.data_points.toString());
+export const AnalysisPanel = ({
+  answer,
+  activeTab,
+  onActiveTabChanged,
+  activeCitation,
+  citationHeight,
+  className,
+  fileType = "txt",
+  fileName,
+}: Props) => {
+  if (!activeTab) {
+    return null; // or render a default view
+  }
 
-    const sanitizedThoughts = DOMPurify.sanitize(answer.thoughts!);
+  // Extract thoughts from answer
+  const { thoughts } = answer;
+  let thoughtsContent: string = "";
+  const MAX_CONTENT_LENGTH = 1000;
 
-    return (
-        <Pivot
-            className={className}
-            selectedKey={activeTab}
-            onLinkClick={pivotItem => pivotItem && onActiveTabChanged(pivotItem.props.itemKey! as AnalysisPanelTabs)}
+  if (typeof thoughts === "string") {
+    thoughtsContent =
+      thoughts.length > MAX_CONTENT_LENGTH
+        ? thoughts.substring(0, MAX_CONTENT_LENGTH) + "..."
+        : thoughts;
+  } else if (Array.isArray(thoughts)) {
+    // Build HTML blocks for each thought message with extra formatting
+    thoughtsContent = thoughts
+      .map((thought: Thought) => {
+        // Handle content that can be a string or an array of strings
+        let content = Array.isArray(thought.content)
+          ? thought.content.join("<br>")
+          : thought.content;
+
+        // Truncate content if it's too long
+        if (content.length > MAX_CONTENT_LENGTH) {
+          content = content.substring(0, MAX_CONTENT_LENGTH) + "...";
+        }
+
+        return `
+          <div class="message ${thought.speaker}">
+            <div class="speaker"><strong>${thought.speaker}</strong></div>
+            <div class="content">${content}</div>
+          </div>
+          <br/>
+        `;
+      })
+      .join("");
+  } else {
+    thoughtsContent = "";
+  }
+
+  // Directly sanitize the HTML without any extra replacement
+  const sanitizedHTML = DOMPurify.sanitize(thoughtsContent);
+
+  // Define tab disabled states
+  const isDisabledThoughtProcessTab = !answer.thoughts || thoughtsContent.trim() === "";
+  const isDisabledCitationTab = !activeCitation;
+
+  return (
+    <Pivot
+      className={className}
+      selectedKey={activeTab}
+      onLinkClick={(pivotItem) => {
+        if (pivotItem) {
+          onActiveTabChanged(pivotItem.props.itemKey as AnalysisPanelTabs);
+        }
+      }}
+    >
+      {/* Thought Process Tab */}
+      <PivotItem
+        itemKey={AnalysisPanelTabs.ThoughtProcessTab}
+        headerText="Thought process"
+        headerButtonProps={isDisabledThoughtProcessTab ? pivotItemDisabledStyle : undefined}
+      >
+        <div className={styles.thoughtProcess}>
+          <div
+            dangerouslySetInnerHTML={{
+              __html: sanitizedHTML,
+            }}
+          />
+        </div>
+      </PivotItem>
+
+      {/* Citation Tab */}
+      {activeCitation && (
+        <PivotItem
+          itemKey={AnalysisPanelTabs.CitationTab}
+          headerText="Citation"
+          headerButtonProps={isDisabledCitationTab ? pivotItemDisabledStyle : undefined}
         >
-            <PivotItem
-                itemKey={AnalysisPanelTabs.ThoughtProcessTab}
-                headerText="Thought process"
-                headerButtonProps={isDisabledThoughtProcessTab ? pivotItemDisabledStyle : undefined}
-            >
-                <div className={styles.thoughtProcess} dangerouslySetInnerHTML={{ __html: sanitizedThoughts }}></div>
-            </PivotItem>
-
-            <PivotItem
-                itemKey={AnalysisPanelTabs.CitationTab}
-                headerText="Citation"
-                headerButtonProps={isDisabledCitationTab ? pivotItemDisabledStyle : undefined}
-            >
-                <Suspense fallback={<p>Cargando...</p>}>
-                    <LazyViewer base64Doc={activeCitation} page={page} fileType={fileType} />
-                </Suspense>
-            </PivotItem>
-        </Pivot>
-    );
+          <div className={styles.thoughtProcess}>
+            <Suspense fallback={<div>Loading document...</div>}>
+              <LazyViewer base64Doc={activeCitation} fileType={fileType} fileName={fileName} />
+            </Suspense>
+          </div>
+        </PivotItem>
+      )}
+    </Pivot>
+  );
 };
