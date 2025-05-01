@@ -75,6 +75,8 @@ cd ..
 az webapp deploy --subscription [SUBSCRIPTION_ID] --resource-group [RESOURCE_GROUP_NAME] --name [WEB_APP_NAME] --src-path deploy.zip --type zip --async true
 ```
 
+az webapp deploy --subscription d890c200-d9f3-4832-81a9-dccbbbbbe54f --resource-group rg-ucan-gpt-rag-v --name webgpt0-ceoweewlxkkg2 --src-path deploy.zip --type zip --async true
+
 ## **(Optional) Test locally** 
 
 1) rename ```.env.template``` to ```.env``` updating the variables accordingly.
